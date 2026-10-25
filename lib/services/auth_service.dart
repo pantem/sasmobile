@@ -1,0 +1,83 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config.dart';
+
+class AuthService {
+  static const String _tokenKey = 'auth_token';
+  static const String _userNombreKey = 'auth_user_nombre';
+  static const String _userUsernameKey = 'auth_user_username';
+  static const String _userAreaKey = 'auth_user_area';
+  static const String _userRolKey = 'auth_user_rol';
+
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey) != null;
+  }
+
+  Future<Map<String, String>> login(String username, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = data['token'] as String;
+        final usuario = data['usuario'] as Map<String, dynamic>;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tokenKey, token);
+        await prefs.setString(_userNombreKey, usuario['nombre'] as String? ?? '');
+        await prefs.setString(_userUsernameKey, usuario['username'] as String? ?? '');
+        await prefs.setString(_userAreaKey, (usuario['area'] is Map ? usuario['area']['nombre'] as String? ?? '' : usuario['area'] as String? ?? ''));
+        await prefs.setString(_userRolKey, (usuario['rol'] is Map ? usuario['rol']['nombre'] as String? ?? '' : usuario['rol'] as String? ?? ''));
+        return {'ok': 'true', 'nombre': usuario['nombre'] as String? ?? ''};
+      }
+
+      final error = jsonDecode(response.body) as Map<String, dynamic>;
+      return {'ok': 'false', 'error': error['error'] as String? ?? 'Error de conexión'};
+    } catch (e) {
+      return {'ok': 'false', 'error': 'No se pudo conectar con el servidor'};
+    }
+  }
+
+  Future<String> getUserNombre() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userNombreKey) ?? '';
+  }
+
+  Future<String> getUserUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userUsernameKey) ?? '';
+  }
+
+  Future<String> getCapturista() async {
+    final prefs = await SharedPreferences.getInstance();
+    final nombre = (prefs.getString(_userNombreKey) ?? '').trim();
+    if (nombre.isNotEmpty) return nombre;
+    final username = (prefs.getString(_userUsernameKey) ?? '').trim();
+    if (username.isNotEmpty) return username;
+    return 'Sin usuario';
+  }
+
+  Future<String> getUserArea() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userAreaKey) ?? '';
+  }
+
+  Future<String> getUserRol() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userRolKey) ?? '';
+  }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userNombreKey);
+    await prefs.remove(_userUsernameKey);
+    await prefs.remove(_userAreaKey);
+    await prefs.remove(_userRolKey);
+  }
+}

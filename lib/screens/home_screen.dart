@@ -1,0 +1,297 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../services/database_service.dart';
+import '../models/reporte.dart';
+import '../services/sync_service.dart';
+import '../services/auth_service.dart';
+import 'nuevo_reporte_screen.dart';
+import 'detalle_siniestro_screen.dart';
+import 'buscar_inmueble_screen.dart';
+import 'login_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  static const String _appVersion = '1.0100';
+  final DatabaseService _db = DatabaseService();
+  final AuthService _auth = AuthService();
+  List<Reporte> _reportes = [];
+  bool _loading = true;
+  String _userNombre = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+    _cargarUsuario();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _mostrarAvisoRefresh());
+  }
+
+  Future<void> _cargarUsuario() async {
+    final nombre = await _auth.getUserNombre();
+    if (!mounted) return;
+    setState(() => _userNombre = nombre);
+  }
+
+  Future<void> _logout() async {
+    await _auth.logout();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  void _mostrarAvisoRefresh() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.refresh, size: 48, color: Color(0xFF7A0C38)),
+        title: const Text('Actualización disponible'),
+        content: const Text(
+          'Debe refrescar la página antes de comenzar a utilizarla, con la finalidad de garantizar su correcto funcionamiento y evitar posibles errores durante la captura de información.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cargar() async {
+    setState(() => _loading = true);
+    final data = await _db.getReportes();
+    setState(() {
+      _reportes = data;
+      _loading = false;
+    });
+  }
+
+  Future<void> _sincronizar() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    final result = await SyncService().sincronizar();
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    await _cargar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.mensaje)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_userNombre.isNotEmpty ? _userNombre : 'Siniestros Sismo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BuscarInmuebleScreen()),
+              );
+            },
+            tooltip: 'Buscar Inmueble',
+          ),
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _sincronizar,
+            tooltip: 'Sincronizar',
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Cerrar sesión',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _reportes.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.map_outlined,
+                                size: 80, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('No hay reportes capturados',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 16)),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _cargar,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: _reportes.length,
+                          itemBuilder: (_, i) {
+                            final r = _reportes[i];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                title: Text(r.folio,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${r.calleNumero}\n${r.colonia}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: r.estadoAfectacion ==
+                                                    'critico'
+                                                ? Colors.red.shade100
+                                                : r.estadoAfectacion ==
+                                                        'moderado'
+                                                    ? Colors.orange.shade100
+                                                    : r.estadoAfectacion ==
+                                                            'colapso'
+                                                        ? Colors.grey.shade300
+                                                        : Colors.green.shade100,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            r.estadoAfectacion == 'critico'
+                                                ? 'Riesgo alto'
+                                                : r.estadoAfectacion ==
+                                                        'moderado'
+                                                    ? 'Riesgo medio'
+                                                    : r.estadoAfectacion ==
+                                                            'colapso'
+                                                        ? 'Colapso'
+                                                        : 'Riesgo bajo',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: r.estadoAfectacion ==
+                                                      'critico'
+                                                  ? Colors.red.shade800
+                                                  : r.estadoAfectacion ==
+                                                          'moderado'
+                                                      ? Colors.orange.shade800
+                                                      : r.estadoAfectacion ==
+                                                              'colapso'
+                                                          ? Colors.black
+                                                          : Colors
+                                                              .green.shade800,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          DateFormat('dd-MM-yyyy')
+                                              .format(r.fecha),
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[600]),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (!r.sincronizado)
+                                      const Icon(Icons.cloud_off,
+                                          size: 18, color: Colors.grey),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
+                                      onPressed: () async {
+                                        await _db.deleteReporte(r.id);
+                                        _cargar();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DetalleSiniestroScreen(
+                                          reporteId: r.id),
+                                    ),
+                                  );
+                                  _cargar();
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            color: const Color(0xFFF5F5F5),
+            child: Text(
+              'v$_appVersion',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'buscar',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BuscarInmuebleScreen()),
+              );
+            },
+            tooltip: 'Buscar Inmueble',
+            child: const Icon(Icons.search),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton.extended(
+            heroTag: 'nuevo',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NuevoReporteScreen()),
+              );
+              _cargar();
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Nuevo Reporte'),
+          ),
+        ],
+      ),
+    );
+  }
+}
