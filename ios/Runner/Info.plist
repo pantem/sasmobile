@@ -73,6 +73,8 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Se accede a la galeria para adjuntar imagenes del siniestro.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Se usa tu ubicacion para georreferenciar el reporte del siniestro.</string>
+	<string>Se usa tu ubicacion para georreferenciar el reporte del siniestro; solo se accede mientras usas la app.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Se usa tu ubicacion para georreferenciar el reporte del siniestro; solo se accede mientras usas la app.</string>
 </dict>
 </plist>
