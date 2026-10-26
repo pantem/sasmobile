@@ -27,9 +27,13 @@ workflows:
           BUILD_NO=$(date -u +%s)
           echo "Commit: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
           echo "Build number: $BUILD_NO"
-          flutter build ipa --release --build-number=$BUILD_NO
-          ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/iphoneos/Runner.app/Info.plist)
-          echo "CFBundleVersion del app construido: $ACTUAL"
+          if ! flutter build ipa --release --build-number=$BUILD_NO; then
+            echo "ERROR: fallo el build/exportArchive (firma)."
+            echo "Revisa: paso 'Set up code signing settings on Xcode project' y que el perfil App Store tenga el certificado subido (verde) en Codemagic."
+            exit 1
+          fi
+          ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist)
+          echo "CFBundleVersion del archive: $ACTUAL"
           if [ "$ACTUAL" != "$BUILD_NO" ]; then
             echo "ERROR: CFBundleVersion ($ACTUAL) no es el esperado ($BUILD_NO)"
             exit 1
