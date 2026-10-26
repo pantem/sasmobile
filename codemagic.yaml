@@ -27,7 +27,13 @@ workflows:
           BUILD_NO=$(date -u +%s)
           echo "Commit: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
           echo "Build number: $BUILD_NO"
-          if ! flutter build ipa --release --build-number=$BUILD_NO; then
+          if [ ! -f "$HOME/export_options.plist" ]; then
+            echo "ERROR: falta $HOME/export_options.plist (no corrio xcode-project use-profiles)"
+            exit 1
+          fi
+          echo "Export options generados por use-profiles:"
+          cat "$HOME/export_options.plist"
+          if ! flutter build ipa --release --build-number=$BUILD_NO --export-options-plist=$HOME/export_options.plist; then
             echo "ERROR: fallo el build/exportArchive (firma)."
             echo "Revisa: paso 'Set up code signing settings on Xcode project' y que el perfil App Store tenga el certificado subido (verde) en Codemagic."
             exit 1
@@ -38,6 +44,7 @@ workflows:
             echo "ERROR: CFBundleVersion ($ACTUAL) no es el esperado ($BUILD_NO)"
             exit 1
           fi
+          ls -la build/ios/ipa/
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
