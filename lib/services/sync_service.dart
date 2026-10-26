@@ -81,11 +81,14 @@ class SyncService {
             ],
           };
 
-          final response = await http.post(
-            Uri.parse('$_baseUrl/reportes/sync'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          );
+           final response = await http.post(
+             Uri.parse('$_baseUrl/reportes/sync'),
+             headers: {
+               'Content-Type': 'application/json',
+               'User-Agent': 'SiniestrosSismoApp/1.0 (iOS/Android)',
+             },
+             body: jsonEncode(body),
+           ).timeout(const Duration(seconds: 90));
 
           if (response.statusCode == 200) {
             final resData = jsonDecode(response.body) as Map<String, dynamic>;
@@ -146,10 +149,13 @@ class SyncService {
 
   Future<Map<String, dynamic>> _sincronizarTipos() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/tipos-inmueble?activos=true'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 30));
+       final response = await http.get(
+         Uri.parse('$_baseUrl/tipos-inmueble?activos=true'),
+         headers: {
+           'Content-Type': 'application/json',
+           'User-Agent': 'SiniestrosSismoApp/1.0 (iOS/Android)',
+         },
+       ).timeout(const Duration(seconds: 90));
       if (response.statusCode != 200) {
         return {'ok': false, 'error': 'Error HTTP ${response.statusCode}'};
       }
@@ -163,10 +169,13 @@ class SyncService {
       await _db.insertTiposInmueble(tipos);
 
       for (final tipo in tipos) {
-        final caractsResponse = await http.get(
-          Uri.parse('$_baseUrl/tipos-inmueble/${tipo.id}/caracteristicas'),
-          headers: {'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 30));
+         final caractsResponse = await http.get(
+           Uri.parse('$_baseUrl/tipos-inmueble/${tipo.id}/caracteristicas'),
+           headers: {
+             'Content-Type': 'application/json',
+             'User-Agent': 'SiniestrosSismoApp/1.0 (iOS/Android)',
+           },
+         ).timeout(const Duration(seconds: 90));
         if (caractsResponse.statusCode != 200) continue;
 
         final caractsJson = jsonDecode(caractsResponse.body) as List;
@@ -204,9 +213,10 @@ class SyncService {
       if (!await file.exists()) continue;
 
       try {
-        final request =
-            http.MultipartRequest('POST', Uri.parse('$_baseUrl/fotos/$folio'));
-        request.files.add(await http.MultipartFile.fromPath('fotos', parte));
+       final request =
+           http.MultipartRequest('POST', Uri.parse('$_baseUrl/fotos/$folio'));
+       request.headers['User-Agent'] = 'SiniestrosSismoApp/1.0 (iOS/Android)';
+       request.files.add(await http.MultipartFile.fromPath('fotos', parte));
 
         final streamed =
             await request.send().timeout(const Duration(seconds: 120));
@@ -258,10 +268,13 @@ class SyncService {
 
   Future<int> _descargar(String did) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/reportes/pull?dispositivo=$did'),
-        headers: {'Content-Type': 'application/json'},
-      );
+       final response = await http.get(
+         Uri.parse('$_baseUrl/reportes/pull?dispositivo=$did'),
+         headers: {
+           'Content-Type': 'application/json',
+           'User-Agent': 'SiniestrosSismoApp/1.0 (iOS/Android)',
+         },
+       ).timeout(const Duration(seconds: 90));
 
       if (response.statusCode != 200) return 0;
 
