@@ -3,6 +3,12 @@ workflows:
     name: iOS Release
     instance_type: mac_mini_m2
     max_build_duration: 120
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
     environment:
       flutter: stable
       xcode: latest
@@ -19,8 +25,15 @@ workflows:
       - name: Build iOS
         script: |
           BUILD_NO=$(date -u +%s)
+          echo "Commit: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
           echo "Build number: $BUILD_NO"
           flutter build ipa --release --build-number=$BUILD_NO
+          ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/iphoneos/Runner.app/Info.plist)
+          echo "CFBundleVersion del app construido: $ACTUAL"
+          if [ "$ACTUAL" != "$BUILD_NO" ]; then
+            echo "ERROR: CFBundleVersion ($ACTUAL) no es el esperado ($BUILD_NO)"
+            exit 1
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
