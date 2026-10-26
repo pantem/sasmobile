@@ -17,7 +17,10 @@ workflows:
       - name: Run tests
         script: flutter test
       - name: Build iOS
-        script: flutter build ipa --release --build-number=$BUILD_NUMBER
+        script: |
+          BUILD_NO=$(date -u +%s)
+          echo "Build number: $BUILD_NO"
+          flutter build ipa --release --build-number=$BUILD_NO
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
