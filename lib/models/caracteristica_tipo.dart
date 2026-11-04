@@ -27,6 +27,23 @@ class CaracteristicaTipo {
     this.maximo,
   });
 
+  CaracteristicaTipo copyWith({double? minimo, double? maximo}) {
+    return CaracteristicaTipo(
+      id: id,
+      tipoInmuebleId: tipoInmuebleId,
+      nombre: nombre,
+      tipoDato: tipoDato,
+      opciones: opciones,
+      requerido: requerido,
+      orden: orden,
+      renderType: renderType,
+      condicionalTexto: condicionalTexto,
+      mostrarTitulo: mostrarTitulo,
+      minimo: minimo ?? this.minimo,
+      maximo: maximo ?? this.maximo,
+    );
+  }
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'tipoInmuebleId': tipoInmuebleId,

@@ -405,6 +405,19 @@ class DatabaseService {
     }
   }
 
+  static const String _nombreAnioConstruccion =
+      '2.8 Año estimado de la Construcción';
+  static const double _minimoAnioConstruccion = 1700;
+
+  List<CaracteristicaTipo> _conAnioEnCurso(
+      List<CaracteristicaTipo> caracteristicas) {
+    final anio = DateTime.now().year.toDouble();
+    return caracteristicas.map((c) {
+      if (c.nombre.trim() != _nombreAnioConstruccion) return c;
+      return c.copyWith(minimo: _minimoAnioConstruccion, maximo: anio);
+    }).toList();
+  }
+
   Future<List<CaracteristicaTipo>> getCaracteristicas(
       String tipoInmuebleId) async {
     final db = await database;
@@ -412,14 +425,16 @@ class DatabaseService {
         where: 'tipoInmuebleId = ?',
         whereArgs: [tipoInmuebleId],
         orderBy: 'orden ASC');
-    return maps.map((m) => CaracteristicaTipo.fromMap(m)).toList();
+    return _conAnioEnCurso(
+        maps.map((m) => CaracteristicaTipo.fromMap(m)).toList());
   }
 
   Future<List<CaracteristicaTipo>> getTodasCaracteristicas() async {
     final db = await database;
     final maps =
         await db.query('caracteristicas_tipo', orderBy: 'tipoInmuebleId, orden ASC');
-    return maps.map((m) => CaracteristicaTipo.fromMap(m)).toList();
+    return _conAnioEnCurso(
+        maps.map((m) => CaracteristicaTipo.fromMap(m)).toList());
   }
 
   Future<void> insertValoresCaracteristica(
